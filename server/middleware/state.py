@@ -101,12 +101,20 @@ class State:
         # -----------------------------
         # Session-only rolling stats
         # -----------------------------
+        # TODO adjust the metrics here
         self.session_stats = {
             "gaze": {"mean": None, "std": None, "n": 0, "M2": 0},
             "head": {"mean": None, "std": None, "n": 0, "M2": 0},
             "blink": {"mean": None, "std": None, "n": 0, "M2": 0},
             "expression": {"mean": None, "std": None, "n": 0, "M2": 0},
         }
+
+        # adjust this based onn sunny TODO
+        self.last_line_processed = profile.get("last_line_processed", 0)
+        # adjust this based onn sunny TODO
+        self.keyboard_stroke = profile.get("keyboard_stroke", true)
+        self.cursor_movement = profile.get("cursor_movement", true)
+        
 
 
     # Save persistent profile
@@ -119,6 +127,7 @@ class State:
             "long_term_variance": self.long_term_variance,
             "good_behavior_counter": self.good_behavior_counter,
             "last_variance_update_time": self.last_variance_update_time,
+            "last_line_processed": self.last_line_processed
         }
         with open(self.profile_path, "w") as f:
             json.dump(profile, f, indent=2)

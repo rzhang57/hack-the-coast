@@ -15,21 +15,24 @@ VARIANCE_IMPROVEMENT_THRESHOLD = 0.05  # recommended for long-term tightening
 WEIGHT_DECREMENT = 0.05
 MIN_WEIGHT = 0.10
 
+
+# TODO adjust these names and order and stuff.
+THRESHOLD_KEYS = {
+    "gaze": "max_offscreen_time",
+    "blink": "blink_rate_threshold",
+    "head": "head_movement_tolerance",
+    "expression": "expression_drop_threshold"
+}
+
 # -----------------------------
 # Threshold adjustments (relaxing)
 # -----------------------------
-GAZE_THRESHOLD_INCREMENT = 0.5
-BLINK_THRESHOLD_INCREMENT = 0.05
-HEAD_THRESHOLD_INCREMENT = 0.05
-EXPRESSION_THRESHOLD_INCREMENT = 0.05
+THRESHOLD_LOOSEN = 1.05
 
 # -----------------------------
 # Threshold tightening (optional)
 # -----------------------------
-MIN_GAZE_THRESHOLD = 1.0
-MIN_BLINK_THRESHOLD = 0.20
-MIN_HEAD_THRESHOLD = 0.10
-MIN_EXPRESSION_THRESHOLD = 0.05
+THRESHOLD_TIGHTEN = 0.975
 
 # -----------------------------
 # Engagement thresholds

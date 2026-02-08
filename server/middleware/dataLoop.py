@@ -1,10 +1,11 @@
 import time
-from dataProcessing import processData
-from engagementLogic import handle_engagement
+from dataParsing import readData
+from engagementLogic import handleEngagement
 
 def data_loop(state):
     while True:
-        raw = collect_raw_data()  # your camera/face/metrics
-        processed = process_data(raw, state)
-        handle_engagement(state, processed)
-        time.sleep(3)  # or 10, or dynamic
+        readData(state)
+        handleEngagement(state)
+        time.sleep(5)  #TODO communicate with sunny and decide the timing
+                        # currently im settingn it to 6 because every 5 seconds
+                        # there should be updated data
