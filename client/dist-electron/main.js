@@ -6,8 +6,18 @@ const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 let win = null;
 let flaskProcess = null;
 function startFlask() {
-  const serverDir = path.join(__dirname$1, "..", "..", "server");
-  const pythonPath = path.join(serverDir, "venv", "bin", "python");
+  const isDev = !!process.env.VITE_DEV_SERVER_URL;
+  let serverDir;
+  let pythonPath;
+  if (isDev) {
+    serverDir = path.join(__dirname$1, "..", "..", "server");
+    pythonPath = path.join(serverDir, "venv", "bin", "python");
+  } else {
+    serverDir = path.join(process.resourcesPath, "server");
+    pythonPath = path.join(serverDir, "venv", "bin", "python");
+  }
+  console.log(`[flask] isDev=${isDev} serverDir=${serverDir}`);
+  console.log(`[flask] pythonPath=${pythonPath}`);
   flaskProcess = spawn(pythonPath, ["-m", "flask", "--app", "app", "run"], {
     cwd: serverDir,
     env: { ...process.env, FLASK_ENV: "development" }
@@ -27,11 +37,12 @@ function createWindow() {
     width: 380,
     height: 520,
     frame: false,
-    transparent: true,
+    transparent: false,
     resizable: true,
     alwaysOnTop: true,
     skipTaskbar: false,
-    hasShadow: false,
+    hasShadow: true,
+    backgroundColor: "#1e1e1e",
     webPreferences: {
       preload: path.join(__dirname$1, "preload.mjs"),
       contextIsolation: true,
@@ -45,7 +56,7 @@ function createWindow() {
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    win.loadFile(path.join(__dirname$1, "..", "dist", "index.html"));
+    win.loadFile(path.join(app.getAppPath(), "dist", "index.html"));
   }
 }
 app.whenReady().then(() => {

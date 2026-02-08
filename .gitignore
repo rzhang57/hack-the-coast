@@ -3,3 +3,4 @@
 *.env
 
 server/venv
+server/user_info.json

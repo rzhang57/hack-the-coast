@@ -1,0 +1,20 @@
+appId: com.hackthecoast.unstuck
+productName: unstuck
+directories:
+  output: release
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+extraResources:
+  - from: ../server
+    to: server
+    filter:
+      - "**/*"
+      - "!__pycache__"
+      - "!**/__pycache__"
+mac:
+  target: dir
+  category: public.app-category.productivity
+  identity: null
+asar: true

@@ -1,6 +1,7 @@
 import json
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
+import os
 from dotenv import load_dotenv
 from services.buffer_service import BufferService
 from services.chat_service import ChatService
@@ -11,6 +12,36 @@ CORS(app)
 
 buffer_service = BufferService()
 chat_service = ChatService()
+
+
+@app.route('/key', methods=['GET'])
+def has_api_key():
+    userinfo_path = os.path.join(os.path.dirname(__file__), 'user_info.json')
+    if os.path.exists(userinfo_path):
+        with open(userinfo_path, 'r') as f:
+            userinfo = json.load(f)
+            if userinfo.get('gemini_api_key'):
+                return jsonify({'hasKey': True})
+    return jsonify({'hasKey': False})
+
+
+@app.route('/key', methods=['POST'])
+def set_api_key():
+    api_key = request.json.get("api_key")
+    if not api_key:
+        return jsonify({'error': 'api_key is required'}), 400
+
+    userinfo_path = os.path.join(os.path.dirname(__file__), 'user_info.json')
+    userinfo = {}
+    if os.path.exists(userinfo_path):
+        with open(userinfo_path, 'r') as f:
+            userinfo = json.load(f)
+
+    userinfo['gemini_api_key'] = api_key
+    with open(userinfo_path, 'w') as f:
+        json.dump(userinfo, f)
+
+    return jsonify({'hasKey': True})
 
 
 @app.route('/buffer/record', methods=['POST'])
