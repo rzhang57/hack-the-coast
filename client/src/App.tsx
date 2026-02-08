@@ -18,7 +18,7 @@ interface Message {
 type AppView = 'pill' | 'settings' | 'prompt' | 'chat'
 
 const PILL = { w: 200, h: 48 }
-const SETTINGS = { w: 300, h: 320 }
+const SETTINGS = { w: 300, h: 250 }
 const PROMPT = { w: 320, h: 180 }
 const CHAT = { w: 380, h: 520 }
 
@@ -29,18 +29,22 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
-  const [pinned, setPinned] = useState(true)
 
   const [recording, setRecording] = useState(false)
   const [hasKey, setHasKey] = useState(false)
   const [editingKey, setEditingKey] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [threshold, setThreshold] = useState(0)
+  const [promptFading, setPromptFading] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   function resize(size: { w: number; h: number }) {
     window.electronAPI?.resizeWindow(size.w, size.h)
+  }
+
+  function animateResize(size: { w: number; h: number }, ms = 1000) {
+    return window.electronAPI?.animateResize(size.w, size.h, ms)
   }
 
   useEffect(() => {
@@ -55,18 +59,21 @@ function App() {
         const status = await getBufferStatus()
         setRecording(status.running)
         if (status.running) {
-          // fetch threshold
+          setThreshold((v) => v + 1)
         }
       } catch { /* server unavailable */ }
-    }, 5000)
+    }, 1000)
     return () => clearInterval(interval)
   }, [view, recording])
 
   useEffect(() => {
+    // TODO: threshold will become a boolean state instead, play ping sound
     if (threshold >= THRESHOLD_LIMIT && view === 'pill') {
-      setView('prompt')
-      resize(PROMPT)
       setThreshold(0)
+      // setPromptFading(false)
+      // setView('prompt')
+      // animateResize(PROMPT, 400)
+      handleBlocked()
     }
   }, [threshold, view])
 
@@ -115,11 +122,6 @@ function App() {
     }
   }
 
-  async function handleTogglePin() {
-    const result = await window.electronAPI?.toggleAlwaysOnTop()
-    if (result !== undefined) setPinned(result)
-  }
-
   function goToPill() {
     setView('pill')
     setMessages([])
@@ -154,18 +156,24 @@ function App() {
       } else {
         await startBuffer()
         setRecording(true)
+        goToPill()
       }
     } catch { /* handle error */ }
   }
 
   function handleBlocked() {
     setView('chat')
-    resize(CHAT)
+    animateResize(CHAT)
     handleStuck()
   }
 
-  function handleNotBlocked() {
-    goToPill()
+  async function handleNotBlocked() {
+    setPromptFading(true)
+    await new Promise(r => setTimeout(r, 300))
+    setView('pill')
+    setMessages([])
+    setInput('')
+    await animateResize(PILL, 500)
   }
 
   // -- PILL --
@@ -173,19 +181,19 @@ function App() {
     return (
       <div className="drag flex items-center justify-center h-screen bg-transparent cursor-pointer" onClick={openSettings}>
         <div className="no-drag flex items-center gap-2 px-4 h-10 bg-[rgba(10,10,10,0.88)] border border-white/10 shadow-lg">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${recording ? 'bg-white dot-glow-white' : 'bg-white/30'}`} />
-          <span className="text-xs font-semibold text-white/60 tracking-wide whitespace-nowrap">unstuck</span>
+          <span
+              className={`w-2 h-2 rounded-full shrink-0 ${recording ? 'bg-white animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]' : 'bg-white/30'}`}/>
+          <span className="text-xs font-semibold text-white/60 tracking-wide whitespace-nowrap">focus</span>
         </div>
       </div>
     )
   }
 
-  // -- SETTINGS --
   if (view === 'settings') {
     return (
       <div className="flex flex-col h-screen bg-black overflow-hidden shadow-2xl border border-white/[0.08]">
-        <div className="drag flex items-center justify-between h-9 px-3 bg-[rgba(15,15,15)] border-b border-white/[0.06] shrink-0">
-          <span className="text-xs font-semibold text-white/70 tracking-wide">settings</span>
+        <div className="drag flex items-center justify-between h-9 px-3 shrink-0">
+          <span className="text-xs font-semibold text-white/70 tracking-tight">Settings</span>
           <div className="no-drag flex gap-1">
             <button
               className="w-6 h-6 border-none bg-transparent text-white/50 cursor-pointer flex items-center justify-center text-xs p-0 hover:text-white"
@@ -194,9 +202,9 @@ function App() {
           </div>
         </div>
 
-        <div className="flex-1 p-5 px-4 flex flex-col gap-6 overflow-y-auto">
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-white/40">API Key</label>
+        <div className="flex-1 p-5 px-4 flex flex-col gap-2 overflow-y-auto">
+          <div className="flex flex-col">
+            <label className="text-[10px] font-semibold tracking-tight text-white/40">Gemini API Key</label>
             {hasKey && !editingKey ? (
               <div className="flex items-center gap-2">
                 <span className="flex-1 text-xs text-white/70">●●●●●●●●</span>
@@ -224,13 +232,13 @@ function App() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-white/40">Focus Session</label>
+            <label className="text-[10px] font-semibold tracking-tight text-white/40">Focus Session</label>
             <button
               className={`flex items-center justify-center gap-2 w-full py-2.5 border text-white text-[13px] font-semibold cursor-pointer ${recording ? 'border-white/20 bg-white/10' : 'border-white/10 bg-white/[0.04]'} hover:bg-white/10`}
               onClick={handleToggleBuffer}
             >
               <span className={`w-2 h-2 rounded-full shrink-0 ${recording ? 'bg-white dot-glow-white' : 'bg-white/30'}`} />
-              {recording ? 'Stop Recording' : 'Start Recording'}
+              {recording ? 'End Session' : 'Start Session'}
             </button>
           </div>
 
@@ -249,16 +257,18 @@ function App() {
   if (view === 'prompt') {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-6 bg-black shadow-2xl border border-white/[0.08] gap-5">
-        <p className="text-sm font-semibold text-white/85 m-0 text-center">Are you feeling blocked?</p>
-        <div className="flex gap-2.5 w-full">
-          <button
-            className="flex-1 py-2.5 border-none bg-white text-black text-xs font-semibold cursor-pointer hover:bg-white/90"
-            onClick={handleBlocked}
-          >Yes, I'm stuck</button>
-          <button
-            className="flex-1 py-2.5 border border-white/[0.12] bg-transparent text-white/70 text-xs font-semibold cursor-pointer hover:bg-white/10"
-            onClick={handleNotBlocked}
-          >No, I'm good</button>
+        <div className={`flex flex-col items-center gap-5 w-full ${promptFading ? 'prompt-fade-out' : 'prompt-fade-in'}`}>
+          <p className="text-sm font-semibold text-white/85 m-0 text-center">Are you feeling blocked?</p>
+          <div className="flex gap-2.5 w-full">
+            <button
+              className="flex-1 py-2.5 border-none bg-white text-black text-xs font-semibold cursor-pointer hover:bg-white/90"
+              onClick={handleBlocked}
+            >Yes, I'm stuck</button>
+            <button
+              className="flex-1 py-2.5 border border-white/[0.12] bg-transparent text-white/70 text-xs font-semibold cursor-pointer hover:bg-white/10"
+              onClick={handleNotBlocked}
+            >No, I'm good</button>
+          </div>
         </div>
       </div>
     )
@@ -271,20 +281,10 @@ function App() {
         <span className="text-xs font-semibold text-white/70 tracking-wide">unstuck</span>
         <div className="no-drag flex gap-1">
           <button
-            className={`w-6 h-6 border-none bg-transparent cursor-pointer flex items-center justify-center text-xs p-0 hover:text-white ${pinned ? 'text-white' : 'text-white/50'}`}
-            onClick={handleTogglePin}
-            title={pinned ? 'Unpin' : 'Pin on top'}
-          >&#x1F4CC;</button>
-          <button
-            className="w-6 h-6 border-none bg-transparent text-white/50 cursor-pointer flex items-center justify-center text-xs p-0 hover:text-white"
-            onClick={() => window.electronAPI?.minimize()}
-            title="Minimize"
-          >&#x2013;</button>
-          <button
             className="w-6 h-6 border-none bg-transparent text-white/50 cursor-pointer flex items-center justify-center text-xs p-0 hover:text-white"
             onClick={goToPill}
             title="Close"
-          >&#x2715;</button>
+          >-</button>
         </div>
       </div>
 

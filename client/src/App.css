@@ -8,3 +8,21 @@
   background: rgba(255, 255, 255, 0.15);
   border-radius: 0;
 }
+
+@keyframes promptIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes promptOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(4px); }
+}
+
+.prompt-fade-in {
+  animation: promptIn 0.5s ease-out 0.15s both;
+}
+
+.prompt-fade-out {
+  animation: promptOut 0.25s ease-in both;
+}

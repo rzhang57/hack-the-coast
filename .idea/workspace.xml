@@ -7,9 +7,12 @@
     <list default="true" id="b8e5c5da-b45b-47fa-89d8-13b07be85e05" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/dist-electron/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/dist-electron/main.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/dist-electron/preload.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/client/dist-electron/preload.mjs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/electron/main.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/electron/main.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/electron/preload.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/electron/preload.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/App.css" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/App.css" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/App.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/services/buffer_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/server/services/buffer_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/electron.d.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/electron.d.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/server/services/chat_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/server/services/chat_service.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -250,7 +253,7 @@
       <workItem from="1770488737801" duration="1514000" />
       <workItem from="1770494480790" duration="176000" />
       <workItem from="1770494745214" duration="7767000" />
-      <workItem from="1770514624941" duration="15858000" />
+      <workItem from="1770514624941" duration="20864000" />
     </task>
     <servers />
   </component>

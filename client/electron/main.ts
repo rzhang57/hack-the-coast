@@ -69,17 +69,8 @@ function startFlask() {
   })
 }
 
-function getPillPosition() {
-  const display = screen.getPrimaryDisplay()
-  const { width, height } = display.workAreaSize
-  return {
-    x: Math.round((width - PILL_WIDTH) / 2),
-    y: height - PILL_HEIGHT - 24,
-  }
-}
-
 function createWindow() {
-  const pos = getPillPosition()
+  const pos = getTargetBounds(PILL_WIDTH, PILL_HEIGHT)
 
   win = new BrowserWindow({
     width: PILL_WIDTH,
@@ -152,18 +143,58 @@ ipcMain.handle('toggle-always-on-top', () => {
   return next
 })
 
+function getTargetBounds(w: number, h: number) {
+  const display = screen.getPrimaryDisplay()
+  const area = display.workAreaSize
+  return {
+    x: Math.round((area.width - w) / 2),
+    y: area.height - h - 24,
+    width: w,
+    height: h,
+  }
+}
+
 ipcMain.handle('resize-window', (_event: unknown, w: number, h: number) => {
   if (!win) return
-  if (w === PILL_WIDTH && h === PILL_HEIGHT) {
-    const pos = getPillPosition()
-    win.setBounds({ x: pos.x, y: pos.y, width: w, height: h }, false)
-    win.setResizable(false)
-  } else {
-    const display = screen.getPrimaryDisplay()
-    const area = display.workAreaSize
-    const x = Math.round((area.width - w) / 2)
-    const y = Math.round((area.height - h) / 2)
-    win.setResizable(true)
-    win.setBounds({ x, y, width: w, height: h }, false)
-  }
+  const target = getTargetBounds(w, h)
+  win.setResizable(true)
+  win.setBounds(target, false)
+  if (w === PILL_WIDTH && h === PILL_HEIGHT) win.setResizable(false)
+})
+
+let animTimer: ReturnType<typeof setInterval> | null = null
+
+ipcMain.handle('animate-resize', (_event: unknown, w: number, h: number, durationMs: number) => {
+  if (!win) return
+  if (animTimer) { clearInterval(animTimer); animTimer = null }
+
+  const start = win.getBounds()
+  const end = getTargetBounds(w, h)
+  const frames = Math.max(1, Math.round(durationMs / 16))
+  let frame = 0
+
+  win.setResizable(true)
+
+  return new Promise<void>(resolve => {
+    animTimer = setInterval(() => {
+      frame++
+      const t = Math.min(frame / frames, 1)
+      const ease = 1 - Math.pow(1 - t, 3)
+
+      win!.setBounds({
+        x: Math.round(start.x + (end.x - start.x) * ease),
+        y: Math.round(start.y + (end.y - start.y) * ease),
+        width: Math.round(start.width + (end.width - start.width) * ease),
+        height: Math.round(start.height + (end.height - start.height) * ease),
+      }, false)
+
+      if (frame >= frames) {
+        clearInterval(animTimer!)
+        animTimer = null
+        win!.setBounds(end, false)
+        if (w === PILL_WIDTH && h === PILL_HEIGHT) win!.setResizable(false)
+        resolve()
+      }
+    }, 16)
+  })
 })
