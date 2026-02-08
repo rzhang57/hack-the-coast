@@ -99,6 +99,8 @@ function createWindow() {
     },
   })
 
+  win.setContentProtection(true)
+
   if (process.platform === 'darwin') {
     win.setAlwaysOnTop(true, 'floating')
     win.setVisibleOnAllWorkspaces(true)

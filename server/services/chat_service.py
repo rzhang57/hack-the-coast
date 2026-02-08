@@ -1,5 +1,6 @@
 from google import genai
 from google.genai import types
+import json
 import os
 from dotenv import load_dotenv
 
@@ -15,11 +16,32 @@ Response format (strict):
 
 Never exceed 3 sentences total. Never use bullet points, headers, or lists. Write in a warm but direct tone."""
 
+USERINFO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'user_info.json')
+
 
 class ChatService:
     def __init__(self):
-        self._client = genai.Client(api_key=os.getenv("CHAT_API_KEY"))
+        self._cached_key = None
+        self._client = None
         self._history = []
+
+    def _get_client(self):
+        key = self._read_api_key()
+        if key and key != self._cached_key:
+            self._cached_key = key
+            self._client = genai.Client(api_key=key)
+        if not self._client:
+            raise RuntimeError("No Gemini API key configured")
+        return self._client
+
+    def _read_api_key(self):
+        if os.path.exists(USERINFO_PATH):
+            with open(USERINFO_PATH, 'r') as f:
+                data = json.load(f)
+                key = data.get('gemini_api_key')
+                if key:
+                    return key
+        return os.getenv("CHAT_API_KEY")
 
     def init_chat_stream(self, snapshots):
         self._history = []
@@ -46,7 +68,7 @@ class ChatService:
         return full_text
 
     def _stream_response(self):
-        response_stream = self._client.models.generate_content_stream(
+        response_stream = self._get_client().models.generate_content_stream(
             model=MODEL,
             contents=self._history,
             config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),

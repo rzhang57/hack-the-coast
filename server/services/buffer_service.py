@@ -18,6 +18,7 @@ class BufferService:
         self._buffer = deque(maxlen=MAX_BUFFER_SIZE)
         self._lock = threading.Lock()
         self._running = False
+        self._stop_event = threading.Event()
         self._thread = None
 
     def start(self):
@@ -25,13 +26,15 @@ class BufferService:
         if self._running:
             return
         self._running = True
+        self._stop_event.clear()
         self._thread = threading.Thread(target=self._capture_loop, daemon=True)
         self._thread.start()
 
     def stop(self):
         self._running = False
+        self._stop_event.set()
         if self._thread:
-            self._thread.join(timeout=CAPTURE_INTERVAL + 1)
+            self._thread.join(timeout=1)
             self._thread = None
         self._buffer.clear()
 
@@ -41,7 +44,8 @@ class BufferService:
             if snapshot:
                 with self._lock:
                     self._buffer.append(snapshot)
-            time.sleep(CAPTURE_INTERVAL)
+            if self._stop_event.wait(timeout=CAPTURE_INTERVAL):
+                break
 
     def _take_screenshot(self):
         try:

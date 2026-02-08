@@ -33,6 +33,7 @@ function App() {
 
   const [recording, setRecording] = useState(false)
   const [hasKey, setHasKey] = useState(false)
+  const [editingKey, setEditingKey] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [threshold, setThreshold] = useState(0)
 
@@ -96,7 +97,6 @@ function App() {
 
   async function handleStuck() {
     if (streaming) return
-    setMessages(prev => [...prev, { role: 'user', text: "I'm stuck" }])
     await streamResponse(initAssist())
   }
 
@@ -130,6 +130,8 @@ function App() {
   function openSettings() {
     setView('settings')
     resize(SETTINGS)
+    setEditingKey(false)
+    getKeyStatus().then(r => setHasKey(r.hasKey)).catch(() => {})
   }
 
   async function handleSaveKey() {
@@ -138,6 +140,7 @@ function App() {
     try {
       const res = await saveApiKey(key)
       setHasKey(res.hasKey)
+      setEditingKey(false)
       setApiKeyInput('')
     } catch { /* handle error */ }
   }
@@ -194,12 +197,12 @@ function App() {
         <div className="flex-1 p-5 px-4 flex flex-col gap-6 overflow-y-auto">
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-semibold uppercase tracking-wider text-white/40">API Key</label>
-            {hasKey ? (
+            {hasKey && !editingKey ? (
               <div className="flex items-center gap-2">
-                <span className="flex-1 text-xs text-white/70">Key saved</span>
+                <span className="flex-1 text-xs text-white/70">●●●●●●●●</span>
                 <button
-                  className="h-8 px-3 border border-white/10 bg-transparent text-white/70 text-[11px] font-medium cursor-pointer shrink-0 hover:bg-white/10"
-                  onClick={() => setHasKey(false)}
+                    className="h-8 px-3 border border-white/10 bg-transparent text-white/70 text-[11px] font-medium cursor-pointer shrink-0 hover:bg-white/10"
+                  onClick={() => setEditingKey(true)}
                 >Change</button>
               </div>
             ) : (
