@@ -4,14 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b8e5c5da-b45b-47fa-89d8-13b07be85e05" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/server/services/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/server/services/buffer_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/server/services/chat_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/server/app.py" afterDir="false" />
-    </list>
+    <list default="true" id="b8e5c5da-b45b-47fa-89d8-13b07be85e05" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -247,7 +240,7 @@
       <workItem from="1770488737801" duration="1514000" />
       <workItem from="1770494480790" duration="176000" />
       <workItem from="1770494745214" duration="7767000" />
-      <workItem from="1770514624941" duration="1947000" />
+      <workItem from="1770514624941" duration="2436000" />
     </task>
     <servers />
   </component>
