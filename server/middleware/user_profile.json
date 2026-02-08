@@ -1,0 +1,33 @@
+{
+  "weights": {
+    "gaze": 0.72,
+    "head": 0.2,
+    "blink": 0.25,
+    "expression": 0.15
+  },
+  "thresholds": {
+    "max_offscreen_time": 4.5,
+    "blink_rate_threshold": 0.7,
+    "head_movement_tolerance": 0.35,
+    "expression_drop_threshold": 0.25
+  },
+  "false_alarm_history": {
+    "gaze": 1,
+    "head": 0,
+    "blink": 2,
+    "expression": 0
+  },
+  "long_term_variance": {
+    "gaze": null,
+    "head": null,
+    "blink": null,
+    "expression": null
+  },
+  "good_behavior_counter": {
+    "gaze": 0,
+    "head": 0,
+    "blink": 0,
+    "expression": 0
+  },
+  "last_variance_update_time": 0
+}
