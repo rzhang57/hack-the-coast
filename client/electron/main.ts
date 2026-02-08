@@ -90,7 +90,7 @@ function createWindow() {
     },
   })
 
-  win.setContentProtection(true)
+  win.setContentProtection(false)
 
   if (process.platform === 'darwin') {
     win.setAlwaysOnTop(true, 'floating')

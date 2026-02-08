@@ -74,7 +74,7 @@ function createWindow() {
       nodeIntegration: false
     }
   });
-  win.setContentProtection(true);
+  win.setContentProtection(false);
   if (process.platform === "darwin") {
     win.setAlwaysOnTop(true, "floating");
     win.setVisibleOnAllWorkspaces(true);
