@@ -760,7 +760,10 @@ class NeuroWatcher:
 
 if __name__ == "__main__":
     NeuroWatcher().run()
-    '''
+
+
+
+
 
 
 import cv2
@@ -979,4 +982,202 @@ class NeuroWatcher:
 
 if __name__ == "__main__":
     NeuroWatcher().run()
+'''
+    
 
+import cv2
+import mediapipe as mp
+import time
+import csv
+import os
+import numpy as np
+import multiprocessing
+from pynput import keyboard, mouse
+from datetime import datetime
+import matplotlib.pyplot as plt
+from utils import BiometricUtils
+
+# --- CONFIGURATION: ABSOLUTE PATH ANCHORING ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(SCRIPT_DIR)
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+
+SHOW_CAMERA_VIEW = True
+SHOW_PLOT_VIEW = True
+BUFFER_SECONDS = 0.5 
+SMOOTHING_ALPHA = 0.2
+
+# ==========================================
+# MODULE 1: LIVE PLOTTER
+# ==========================================
+class LivePlotter:
+    def __init__(self, window_size=100):
+        self.window_size = window_size
+        self.x_data = []
+        self.ear_data, self.gaze_x_data = [], []
+        self.mouth_data, self.pitch_data, self.yaw_data = [], [], []
+
+        plt.style.use('dark_background')
+        self.fig, (self.ax1, self.ax2, self.ax3, self.ax4, self.ax5) = plt.subplots(5, 1, figsize=(6, 12))
+        self.fig.canvas.manager.set_window_title('Neuro-Sensory Telemetry')
+
+        self.ln1, = self.ax1.plot([], [], 'y-', label='EAR')
+        self.ax1.set_ylim(0, 0.5); self.ax1.legend(loc="upper right")
+
+        self.ln2, = self.ax2.plot([], [], 'c-', label='Gaze X')
+        self.ax2.set_ylim(0, 1.0); self.ax2.legend(loc="upper right")
+
+        self.ln3, = self.ax3.plot([], [], 'm-', label='Mouth Dist')
+        self.ax3.set_ylim(0, 0.2); self.ax3.legend(loc="upper right")
+
+        self.ln4, = self.ax4.plot([], [], 'r-', label='Head Pitch')
+        self.ax4.set_ylim(0.0, 1.0); self.ax4.legend(loc="upper right")
+
+        self.ln5, = self.ax5.plot([], [], 'g-', label='Head Yaw')
+        self.ax5.set_ylim(-100, 100); self.ax5.legend(loc="upper right")
+
+        plt.tight_layout()
+
+    def update_and_draw(self, rel_time, ear, gaze_x, mouth_dist, pitch, yaw):
+        self.x_data.append(rel_time)
+        self.ear_data.append(ear)
+        self.gaze_x_data.append(gaze_x)
+        self.mouth_data.append(mouth_dist)
+        self.pitch_data.append(pitch)
+        self.yaw_data.append(yaw)
+
+        if len(self.x_data) > self.window_size:
+            for d in [self.x_data, self.ear_data, self.gaze_x_data, self.mouth_data, self.pitch_data, self.yaw_data]:
+                d.pop(0)
+
+        self.ln1.set_data(self.x_data, self.ear_data)
+        self.ln2.set_data(self.x_data, self.gaze_x_data)
+        self.ln3.set_data(self.x_data, self.mouth_data)
+        self.ln4.set_data(self.x_data, self.pitch_data)
+        self.ln5.set_data(self.x_data, self.yaw_data)
+        
+        if len(self.x_data) > 1:
+            for ax in [self.ax1, self.ax2, self.ax3, self.ax4, self.ax5]:
+                ax.set_xlim(self.x_data[0], self.x_data[-1])
+        
+        plt.pause(0.001)
+
+# ==========================================
+# MODULE 2: INPUT TRACKER
+# ==========================================
+def input_worker(q):
+    state = {'keys': 0, 'mouse_px': 0.0, 'last_pos': None}
+    def on_press(key): state['keys'] += 1
+    def on_move(x, y):
+        if state['last_pos']:
+            dx, dy = x - state['last_pos'][0], y - state['last_pos'][1]
+            state['mouse_px'] += (dx**2 + dy**2)**0.5
+        state['last_pos'] = (x, y)
+
+    try:
+        kb = keyboard.Listener(on_press=on_press)
+        m = mouse.Listener(on_move=on_move)
+        kb.start(); m.start()
+        
+        while True:
+            time.sleep(0.01)
+            if state['keys'] > 0 or state['mouse_px'] > 0:
+                q.put({'keys': state['keys'], 'mouse_px': int(state['mouse_px'])})
+                state['keys'], state['mouse_px'] = 0, 0.0
+    except Exception:
+        pass 
+
+# ==========================================
+# MODULE 3: THE WATCHER (PRODUCER)
+# ==========================================
+class NeuroWatcher:
+    def __init__(self):
+        if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
+        
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.csv_path = os.path.join(DATA_DIR, f"telemetry_{timestamp_str}.csv")
+        self.start_time = time.time()
+        
+        self.cap = cv2.VideoCapture(1, cv2.CAP_AVFOUNDATION)
+        if not self.cap.isOpened(): self.cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+        
+        self.face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.5, min_tracking_confidence=0.5)
+        
+        self.input_queue = multiprocessing.Queue()
+        self.process = multiprocessing.Process(target=input_worker, args=(self.input_queue,))
+        self.process.daemon = True; self.process.start()
+        
+        self.plotter = None
+        if SHOW_PLOT_VIEW:
+            self.plotter = LivePlotter(window_size=100)
+            
+        self.buffer, self.last_flush = [], time.time()
+        self.prev_pitch = 0.5
+        self.prev_yaw = 0.0
+        
+        self._init_csv()
+
+    def _init_csv(self):
+        print(f"📝 [WATCHER] Creating File: {self.csv_path}")
+        with open(self.csv_path, mode='w', newline='') as f:
+            csv.writer(f).writerow(['rel_time', 'ear', 'gaze_x', 'gaze_y', 'mouth_dist', 'pitch', 'yaw', 'keys', 'mouse_px'])
+            f.flush()
+            os.fsync(f.fileno())
+
+    def run(self):
+        print(f"🚀 [WATCHER] CAMERA ACTIVE. Writing to: {self.csv_path}")
+        try:
+            while self.cap.isOpened():
+                success, frame = self.cap.read()
+                if not success: continue
+                
+                rel_time = time.time() - self.start_time
+                results = self.face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                
+                # Get Input Data
+                total_keys, total_mouse = 0, 0
+                while not self.input_queue.empty():
+                    data = self.input_queue.get()
+                    if isinstance(data, dict):
+                        total_keys += data.get('keys', 0); total_mouse += data.get('mouse_px', 0)
+                
+                # Process Face
+                if results.multi_face_landmarks:
+                    lm = results.multi_face_landmarks[0].landmark
+                    ear = BiometricUtils.calculate_ear(lm)
+                    gaze_x, gaze_y = BiometricUtils.get_gaze_coords(lm)
+                    mouth_dist = BiometricUtils.get_mouth_dist(lm)
+                    raw_pitch, raw_yaw = BiometricUtils.get_head_pose(lm, frame.shape[1], frame.shape[0])
+                    
+                    # Smoothing
+                    pitch = (SMOOTHING_ALPHA * raw_pitch) + ((1 - SMOOTHING_ALPHA) * self.prev_pitch)
+                    yaw = (SMOOTHING_ALPHA * raw_yaw) + ((1 - SMOOTHING_ALPHA) * self.prev_yaw)
+                    self.prev_pitch, self.prev_yaw = pitch, yaw
+
+                    if self.plotter: 
+                        self.plotter.update_and_draw(rel_time, ear, gaze_x, mouth_dist, pitch, yaw)
+                    
+                    self.buffer.append([rel_time, ear, gaze_x, gaze_y, mouth_dist, pitch, yaw, total_keys, total_mouse])
+
+                    if SHOW_CAMERA_VIEW:
+                        mp.solutions.drawing_utils.draw_landmarks(image=frame, landmark_list=results.multi_face_landmarks[0], connections=mp.solutions.face_mesh.FACEMESH_TESSELATION, landmark_drawing_spec=None, connection_drawing_spec=mp.solutions.drawing_styles.get_default_face_mesh_tesselation_style())
+                        cv2.imshow('Neuro-Watcher', frame)
+                
+                # Flush to Disk
+                if time.time() - self.last_flush > BUFFER_SECONDS:
+                    if self.buffer:
+                        with open(self.csv_path, mode='a', newline='') as f:
+                            csv.writer(f).writerows(self.buffer)
+                            f.flush()
+                            os.fsync(f.fileno())
+                        self.buffer = []
+                    self.last_flush = time.time()
+
+                if SHOW_CAMERA_VIEW:
+                    if cv2.waitKey(1) & 0xFF == ord('q'): break
+                    
+        finally:
+            self.cap.release(); cv2.destroyAllWindows(); self.process.terminate()
+
+if __name__ == "__main__":
+    NeuroWatcher().run()
