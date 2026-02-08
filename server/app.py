@@ -15,14 +15,14 @@ chat_service = ChatService()
 
 
 @app.route('/key', methods=['GET'])
-def has_api_key():
+def get_api_key():
     userinfo_path = os.path.join(os.path.dirname(__file__), 'user_info.json')
     if os.path.exists(userinfo_path):
         with open(userinfo_path, 'r') as f:
             userinfo = json.load(f)
-            if userinfo.get('gemini_api_key'):
-                return jsonify({'hasKey': True})
-    return jsonify({'hasKey': False})
+            key = userinfo.get('gemini_api_key', '')
+            return jsonify({'key': key})
+    return jsonify({'key': ''})
 
 
 @app.route('/key', methods=['POST'])

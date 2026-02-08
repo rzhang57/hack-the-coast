@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   initAssist,
   sendMessage,
-  getKeyStatus,
+  getApiKey,
   saveApiKey,
   startBuffer,
   stopBuffer,
@@ -19,7 +19,6 @@ type AppView = 'pill' | 'settings' | 'prompt' | 'chat'
 
 const PILL = { w: 200, h: 48 }
 const SETTINGS = { w: 300, h: 250 }
-const PROMPT = { w: 320, h: 180 }
 const CHAT = { w: 380, h: 520 }
 
 const THRESHOLD_LIMIT = 5
@@ -31,11 +30,12 @@ function App() {
   const [streaming, setStreaming] = useState(false)
 
   const [recording, setRecording] = useState(false)
-  const [hasKey, setHasKey] = useState(false)
-  const [editingKey, setEditingKey] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState('')
+  const [showKey, setShowKey] = useState(false)
   const [threshold, setThreshold] = useState(0)
   const [promptFading, setPromptFading] = useState(false)
+
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -48,7 +48,7 @@ function App() {
   }
 
   useEffect(() => {
-    getKeyStatus().then(r => setHasKey(r.hasKey)).catch(() => {})
+    getApiKey().then(r => setApiKeyInput(r.key)).catch(() => {})
     getBufferStatus().then(r => setRecording(r.running)).catch(() => {})
   }, [])
 
@@ -132,19 +132,15 @@ function App() {
   function openSettings() {
     setView('settings')
     resize(SETTINGS)
-    setEditingKey(false)
-    getKeyStatus().then(r => setHasKey(r.hasKey)).catch(() => {})
+    getApiKey().then(r => setApiKeyInput(r.key)).catch(() => {})
   }
 
-  async function handleSaveKey() {
-    const key = apiKeyInput.trim()
-    if (!key) return
-    try {
-      const res = await saveApiKey(key)
-      setHasKey(res.hasKey)
-      setEditingKey(false)
-      setApiKeyInput('')
-    } catch { /* handle error */ }
+  function handleApiKeyChange(value: string) {
+    setApiKeyInput(value)
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      saveApiKey(value.trim()).catch(() => {})
+    }, 500)
   }
 
   async function handleToggleBuffer() {
@@ -180,7 +176,7 @@ function App() {
   if (view === 'pill') {
     return (
       <div className="drag flex items-center justify-center h-screen bg-transparent cursor-pointer" onClick={openSettings}>
-        <div className="no-drag flex items-center gap-2 px-4 h-10 bg-[rgba(10,10,10,0.88)] border border-white/10 shadow-lg">
+        <div className="no-drag flex items-center gap-2 px-4 h-10 bg-[rgba(10,10,10,0.88)] rounded-full border border-white/10">
           <span
               className={`w-2 h-2 rounded-full shrink-0 ${recording ? 'bg-white animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]' : 'bg-white/30'}`}/>
           <span className="text-xs font-semibold text-white/60 tracking-wide whitespace-nowrap">focus</span>
@@ -191,44 +187,51 @@ function App() {
 
   if (view === 'settings') {
     return (
-      <div className="flex flex-col h-screen bg-black overflow-hidden shadow-2xl border border-white/[0.08]">
+      <div className="flex flex-col h-screen bg-[rgba(10,10,10,0.88)] overflow-hidden shadow-2xl border border-white/[0.08]">
         <div className="drag flex items-center justify-between h-9 px-3 shrink-0">
           <span className="text-xs font-semibold text-white/70 tracking-tight">Settings</span>
           <div className="no-drag flex gap-1">
             <button
-              className="w-6 h-6 border-none bg-transparent text-white/50 cursor-pointer flex items-center justify-center text-xs p-0 hover:text-white"
+              className="w-6 h-6 border-none bg-transparent text-white/50 cursor-pointer flex items-center justify-center p-0 hover:text-white"
               onClick={goToPill}
-            >&#x2715;</button>
+            ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
           </div>
         </div>
 
         <div className="flex-1 p-5 px-4 flex flex-col gap-2 overflow-y-auto">
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-2">
             <label className="text-[10px] font-semibold tracking-tight text-white/40">Gemini API Key</label>
-            {hasKey && !editingKey ? (
-              <div className="flex items-center gap-2">
-                <span className="flex-1 text-xs text-white/70">●●●●●●●●</span>
-                <button
-                    className="h-8 px-3 border border-white/10 bg-transparent text-white/70 text-[11px] font-medium cursor-pointer shrink-0 hover:bg-white/10"
-                  onClick={() => setEditingKey(true)}
-                >Change</button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <input
-                  className="flex-1 h-8 px-2.5 border border-white/10 bg-white/[0.04] text-white/90 text-xs outline-none placeholder:text-white/30 focus:border-white/30"
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={e => setApiKeyInput(e.target.value)}
-                  placeholder="Enter Gemini API key"
-                />
-                <button
-                  className="h-8 px-3 border border-white/10 bg-transparent text-white/70 text-[11px] font-medium cursor-pointer shrink-0 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
-                  onClick={handleSaveKey}
-                  disabled={!apiKeyInput.trim()}
-                >Save</button>
-              </div>
-            )}
+            <div className="relative">
+              <input
+                className="w-full h-8 px-2.5 pr-8 border border-white/10 bg-white/[0.04] text-white/90 text-xs outline-none placeholder:text-white/30 focus:border-white/30"
+                type={showKey ? 'text' : 'password'}
+                value={apiKeyInput}
+                onChange={e => handleApiKeyChange(e.target.value)}
+                placeholder="Enter Gemini API key"
+                spellCheck={false}
+              />
+              <button
+                className="absolute right-0 top-0 w-8 h-8 border-none bg-transparent text-white/40 cursor-pointer flex items-center justify-center p-0 hover:text-white/80"
+                onClick={() => setShowKey(v => !v)}
+                title={showKey ? 'Hide' : 'Show'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {showKey ? (
+                    <>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </>
+                  ) : (
+                    <>
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </>
+                  )}
+                </svg>
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -256,7 +259,7 @@ function App() {
   // -- PROMPT --
   if (view === 'prompt') {
     return (
-      <div className="flex flex-col items-center justify-center h-screen p-6 bg-black shadow-2xl border border-white/[0.08] gap-5">
+      <div className="flex flex-col items-center justify-center h-screen p-6 bg-[rgba(10,10,10,0.88)] shadow-2xl border border-white/[0.08] gap-5">
         <div className={`flex flex-col items-center gap-5 w-full ${promptFading ? 'prompt-fade-out' : 'prompt-fade-in'}`}>
           <p className="text-sm font-semibold text-white/85 m-0 text-center">Are you feeling blocked?</p>
           <div className="flex gap-2.5 w-full">
@@ -276,15 +279,15 @@ function App() {
 
   // -- CHAT --
   return (
-    <div className="flex flex-col h-screen bg-black overflow-hidden shadow-2xl border border-white/[0.08]">
-      <div className="drag flex items-center justify-between h-9 px-3 bg-[rgba(15,15,15)] border-b border-white/[0.06] shrink-0">
-        <span className="text-xs font-semibold text-white/70 tracking-wide">unstuck</span>
+    <div className="flex flex-col h-screen bg-[rgba(10,10,10,0.88)] overflow-hidden shadow-2xl border-white/[0.08]">
+      <div className="drag flex items-center justify-between h-9 px-3 border-white/[0.06] shrink-0">
+        <span className="text-xs font-semibold text-white/70 tracking-tight">spot agent</span>
         <div className="no-drag flex gap-1">
           <button
-            className="w-6 h-6 border-none bg-transparent text-white/50 cursor-pointer flex items-center justify-center text-xs p-0 hover:text-white"
+            className="w-6 h-6 border-none bg-transparent text-white/50 cursor-pointer flex items-center justify-center p-0 hover:text-white"
             onClick={goToPill}
-            title="Close"
-          >-</button>
+            title="Minimize"
+          ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
         </div>
       </div>
 
@@ -294,19 +297,30 @@ function App() {
             <p className="text-white/45 text-xs leading-relaxed m-0">Feeling stuck? Click the button below and I'll analyze your recent screen activity to help you get unblocked.</p>
           </div>
         )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] py-2 px-3 text-xs leading-relaxed whitespace-pre-wrap break-words ${
-              msg.role === 'user'
-                ? 'bg-white/10 text-white/90'
-                : 'bg-white/[0.04] text-white/85'
-            }`}>{msg.text}</div>
-          </div>
-        ))}
+        {messages.map((msg, i) => {
+          const isThinking = streaming && msg.role === 'assistant' && msg.text === '' && i === messages.length - 1
+          return (
+            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] py-2 px-3 text-xs leading-relaxed whitespace-pre-wrap break-words ${
+                msg.role === 'user'
+                  ? 'bg-white/10 text-white/90'
+                  : 'bg-white/[0.04] text-white/85'
+              }`}>
+                {isThinking ? (
+                  <div className="flex items-center gap-1.5 py-0.5">
+                    <div className="thinking-dot" />
+                    <div className="thinking-dot" />
+                    <div className="thinking-dot" />
+                  </div>
+                ) : msg.text}
+              </div>
+            </div>
+          )
+        })}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex items-center gap-2 p-3 border-t border-white/[0.06] bg-[rgba(10,10,10,0.9)] shrink-0">
+      <div className="flex items-center gap-2 p-3 border-t border-white/[0.06] shrink-0">
         {messages.length === 0 ? (
           <button
             className="w-full py-3 border-none bg-white text-black text-[13px] font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed hover:bg-white/90"
@@ -315,12 +329,6 @@ function App() {
           >{streaming ? 'Analyzing...' : "I'm stuck"}</button>
         ) : (
           <>
-            <button
-              className="w-9 h-9 border border-white/10 bg-transparent text-white/60 cursor-pointer text-base flex items-center justify-center shrink-0 p-0 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
-              onClick={handleStuck}
-              disabled={streaming}
-              title="Analyze screen again"
-            >&#x1F504;</button>
             <input
               className="flex-1 h-9 px-3 border border-white/10 bg-white/[0.04] text-white/90 text-xs outline-none placeholder:text-white/30 focus:border-white/30 disabled:opacity-50"
               value={input}

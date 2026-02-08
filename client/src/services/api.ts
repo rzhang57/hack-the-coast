@@ -30,18 +30,17 @@ async function* readSSE(response: Response): AsyncGenerator<string> {
   }
 }
 
-export async function getKeyStatus(): Promise<{ hasKey: boolean }> {
+export async function getApiKey(): Promise<{ key: string }> {
   const res = await fetch(`${API_BASE}/key`)
   return res.json()
 }
 
-export async function saveApiKey(apiKey: string): Promise<{ hasKey: boolean }> {
-  const res = await fetch(`${API_BASE}/key`, {
+export async function saveApiKey(apiKey: string): Promise<void> {
+  await fetch(`${API_BASE}/key`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ api_key: apiKey }),
   })
-  return res.json()
 }
 
 export async function startBuffer(): Promise<void> {
