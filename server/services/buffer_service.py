@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 import mss
 from PIL import Image
 
-CAPTURE_INTERVAL = 0.5
-MAX_BUFFER_SIZE = 10
+CAPTURE_INTERVAL = 3
+MAX_BUFFER_SIZE = 20
 RESIZE_WIDTH = 1280
 JPEG_QUALITY = 60
 
@@ -68,15 +68,25 @@ class BufferService:
             print(f"Screenshot capture failed: {e}")
             return None
 
-    def flush_buffer(self, clear=True):
+    def flush_buffer(self, clear=True, max_send=8):
         with self._lock:
-            snapshots = list(self._buffer)
+            all_snapshots = list(self._buffer)
             if clear:
                 self._buffer.clear()
-        print(f"[flush_buffer] returning {len(snapshots)} snapshots")
-        for i, s in enumerate(snapshots):
-            print(f"  [{i}] ts={s['timestamp']} size={len(s['image_bytes'])} bytes")
-        return snapshots
+        sampled = self._sample(all_snapshots, max_send)
+        print(f"[flush_buffer] captured={len(all_snapshots)} sending={len(sampled)}")
+        return sampled
+
+    @staticmethod
+    def _sample(snapshots, max_send):
+        n = len(snapshots)
+        if n <= max_send:
+            return snapshots
+        recent = snapshots[-(max_send // 2):]
+        earlier = snapshots[:n - len(recent)]
+        step = max(1, len(earlier) // (max_send - len(recent)))
+        sampled_early = earlier[::step][:max_send - len(recent)]
+        return sampled_early + recent
 
     def get_status(self):
         with self._lock:

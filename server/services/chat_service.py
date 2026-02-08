@@ -26,11 +26,17 @@ class ChatService:
         self._history = []
         labeled_parts = []
         total = len(snapshots)
+        half = total // 2
         for i, snap in enumerate(snapshots):
-            label = f"[Screenshot {i + 1}/{total}]" if i < total - 1 else f"[Screenshot {i + 1}/{total} — MOST RECENT]"
+            if i < total - half:
+                label = f"[Screenshot {i + 1}/{total} — earlier context]"
+            elif i < total - 1:
+                label = f"[Screenshot {i + 1}/{total} — recent]"
+            else:
+                label = f"[Screenshot {i + 1}/{total} — CURRENT SCREEN]"
             labeled_parts.append(types.Part.from_text(text=label))
             labeled_parts.append(types.Part.from_bytes(data=snap["image_bytes"], mime_type=snap["mime_type"]))
-        prompt = "The user just said they're stuck. These screenshots are in chronological order. Focus primarily on the most recent screenshot to understand where they are now, and use earlier screenshots for context. Respond following your format."
+        prompt = "The user just said they're stuck. These screenshots are chronological. The last screenshot is their CURRENT screen — base your response primarily on it. Earlier screenshots show how they got there. Respond following your format."
         self._history.append(types.Content(role="user", parts=[types.Part.from_text(text=prompt)] + labeled_parts))
         full_text = yield from self._stream_response()
         return full_text
